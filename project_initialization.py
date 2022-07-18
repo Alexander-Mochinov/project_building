@@ -1,6 +1,6 @@
 import os
 
-from modules import (
+from module import (
     ProjectList,
     EnvironmentLoader,
     SystemsExecuteCommands,

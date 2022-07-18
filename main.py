@@ -43,5 +43,6 @@ parser.add_argument(
 
 if __name__ == "__main__":
 
-    ProjectInitialization().create_project()
-    GitProjectInitialization().init_project()
+    ProjectInitialization(
+        
+    ).create_project()
