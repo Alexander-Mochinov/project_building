@@ -2,7 +2,7 @@ import os
 from ast import parse, walk, Name
 from importlib.machinery import SourceFileLoader
 
-from modules.exception_state import ExceptionState
+from .exception_state import ExceptionState
 
 
 class FileIOController:
@@ -134,8 +134,7 @@ class ConfigurationController:
         project_name: str,
         path_project: str,
         necessary_structure: list,
-        logging_structure: dict,
-        environment_structure: dict,
+        structure: dict,
         *args, **kwargs,
     ) -> None:
 
@@ -145,11 +144,27 @@ class ConfigurationController:
         self.project_name = project_name
         self.path_project = path_project
         self.necessary_structure = necessary_structure
-        self.logging_structure = logging_structure
-        self.environment_structure = environment_structure
+        self.structure = structure
 
 
-    def create_files(self) -> None:
+    def get_all_files_and_dirs(self) -> None:
+        """
+        Перебор созданных каталогов и папок
+
+        Iterate over created directories and folders
+        """
+
+        for dirpath, dirnames, filenames in os.walk(self.path_project):
+            # directories
+            for dirname in dirnames:
+                print("Directories: ", os.path.join(dirpath, dirname))
+            # files
+            for filename in filenames:
+                print("Files: ", os.path.join(dirpath, filename))
+
+        return None
+
+    def create_files_and_dirs(self) -> None:
         """
         Способ создания вспомогательных файлов в проекте
 
@@ -158,31 +173,28 @@ class ConfigurationController:
 
         for file in self.necessary_structure:
             if not os.path.exists(file):
-                with open(file, 'w'): pass
-                print(f"File created: {file}")
+
+                if os.path.isfile(file):
+                    with open(file, 'w'): pass
+                    print(f"File is created: {file}")
+
+                elif os.path.isdir(file):
+                    os.mkdir(file)
+                    print(f"Directory is created: {file}")
+
             else:
                 print(f"File already exists: {file}")
 
         return None
 
 
-    def logging_configure(self) -> None:
-        """
-        Метод настройки логирования в проекте
-
-        Logging setup method in the project
-        """
-
-        return None
-
-
-    def environment_configure(self) -> None:
+    def expand_structure(self) -> None:
         """
         Способ создания конфигурации
-            для работы с виртуальным окружением
+            для работы с проектом, установка переменных окружения и логирования
 
-        Method for creating a configuration 
-            for working with a virtual environment
+        How to create a configuration
+            for working with the project, setting environment variables and logging
         """
 
         variables_data = {}
@@ -217,10 +229,16 @@ class ConfigurationController:
 
         FileIOController.add_beginning_in_file( # Замена структуры файла 
             file_to_append_structure=self.path_settings,
-            path_to_structure=self.main_path + "/structure/" + self.framework + "/env_structure.txt",
+            path_to_structure=self.main_path + "/structure/" + self.framework + "/head_structure.txt",
+        )
+
+        FileIOController.add_to_the_end_in_file( # Замена структуры файла 
+            file_to_append_structure=self.path_settings,
+            path_to_structure=self.main_path + "/structure/" + self.framework + "/basement_structure.txt",
         )
 
         return None
+
 
     def execute(self) -> tuple:
         """
@@ -231,25 +249,19 @@ class ConfigurationController:
             (Consistency is important)
         """
 
-        create_files = ExceptionState.method_processing(
-            function = self.create_files,
+        create_files_and_dirs = ExceptionState.method_processing(
+            function = self.create_files_and_dirs,
             text="Create files",
         )# first method in line
 
-        logging_configure = ExceptionState.method_processing(
-            function = self.logging_configure,
+        expand_structure = ExceptionState.method_processing(
+            function = self.expand_structure,
             text="Create logging configurations",
         )# second method in line
 
-        environment_configure = ExceptionState.method_processing(
-            function = self.environment_configure,
-            text="Create environment configure",
-        )# third method in line
-
         return {
-            "create_files": create_files,
-            "logging_configure": logging_configure,
-            "environment_configure": environment_configure,
+            "create_files": create_files_and_dirs,
+            "expand_structure": expand_structure,
         }
 
 
@@ -274,17 +286,15 @@ class DjangoConfigurations(ConfigurationController):
         path_settings = path_project / project_name / project_name / "settings.py"
         location_environment = self.path_project / self.project_name / ".env"
 
-        environment_structure = {
+        structure = {
             "name": ".env",
             "location_environment": location_environment,
-            "structure": "env_structure.txt",
             "variable": [
                 "DEBUG",
                 "SECRET_KEY",
                 "ALLOWED_HOSTS",
             ]
         }
-        logging_structure = { }
 
         necessary_structure = [ # Structure files to be created
             location_environment,
@@ -301,8 +311,7 @@ class DjangoConfigurations(ConfigurationController):
             path_project = path_project,
             path_settings = path_settings,
             necessary_structure = necessary_structure,
-            logging_structure = logging_structure,
-            environment_structure = environment_structure,
+            structure = structure,
             *args, **kwargs,
         )
 
@@ -322,9 +331,24 @@ class FastAPIConfigurations(ConfigurationController):
         *args, **kwargs,
     ) -> None:
 
-        logging_structure = { }
-        environment_structure = { }
-        necessary_structure = [ ]
+        self.project_name = project_name
+        self.path_project = path_project
+        
+        path_settings = path_project / project_name / "core" / "settings.py"
+        location_environment = self.path_project / self.project_name / ".env"
+
+        structure = {
+            "name": ".env",
+            "location_environment": location_environment,
+            "variable": [ ]
+        }
+
+        necessary_structure = [ # Structure files to be created
+            location_environment,
+            path_settings,
+            path_project / project_name / "app",
+            # ...
+        ]
 
         super().__init__(
             framework = framework,
@@ -333,8 +357,7 @@ class FastAPIConfigurations(ConfigurationController):
             project_name = project_name,
             path_project = path_project, 
             necessary_structure = necessary_structure,
-            logging_structure = logging_structure,
-            environment_structure = environment_structure,
+            structure = structure,
             *args, **kwargs,
         )
 
@@ -354,9 +377,25 @@ class FlaskConfigurations(ConfigurationController):
         *args, **kwargs,
     ) -> None:
 
-        logging_structure = { }
-        environment_structure = { }
-        necessary_structure = [ ]
+        self.project_name = project_name
+        self.path_project = path_project
+        
+        path_settings = path_project / project_name / "core" / "settings.py"
+        location_environment = self.path_project / self.project_name / ".env"
+
+        structure = {
+            "name": ".env",
+            "location_environment": location_environment,
+            "variable": [ ]
+        }
+
+        necessary_structure = [ # Structure files to be created
+            location_environment,
+            path_settings,
+            path_project / project_name / "app",
+
+            # ...
+        ]
 
         super().__init__(
             framework = framework,
@@ -365,8 +404,54 @@ class FlaskConfigurations(ConfigurationController):
             project_name = project_name,
             path_project = path_project, 
             necessary_structure = necessary_structure,
-            logging_structure = logging_structure,
-            environment_structure = environment_structure,
+            structure = structure,
+            *args, **kwargs,
+        )
+
+class AiohttpConfigurations(ConfigurationController):
+    """
+    Configuration 
+    """
+
+    def __init__(
+        self, 
+        framework: str, 
+        main_path: str, 
+        path_settings: str, 
+        project_name: str, 
+        path_project: str, 
+        *args, **kwargs,
+    ) -> None:
+
+
+        self.project_name = project_name
+        self.path_project = path_project
+        
+        path_settings = path_project / project_name / "core" / "settings.py"
+        location_environment = self.path_project / self.project_name / ".env"
+
+        structure = {
+            "name": ".env",
+            "location_environment": location_environment,
+            "variable": [ ]
+        }
+
+        necessary_structure = [ # Structure files to be created
+            location_environment,
+            path_settings,
+            path_project / project_name / "app",
+
+            # ...
+        ]
+
+        super().__init__(
+            framework = framework,
+            main_path = main_path,
+            path_settings = path_settings,
+            project_name = project_name,
+            path_project = path_project, 
+            necessary_structure = necessary_structure,
+            structure = structure,
             *args, **kwargs,
         )
 
@@ -403,5 +488,16 @@ class ProjectList:
                 "Flask", "uvicorn[standard]"
             ],
             "configurations": FlaskConfigurations,
-        }
+        },
+        "aiohttp": {
+            "init_command": [ ],
+            "commands_project": [
+                [ ],
+            ],
+            "requirements": [
+                "aiohttp", "cchardet", "aiodns", "aiohttp[speedups]"
+            ],
+            "configurations": AiohttpConfigurations,
+        },
+
     }
